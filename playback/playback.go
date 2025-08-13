@@ -215,7 +215,13 @@ func (player *Player) NowPlaying() string {
 	
 	// Check if it's a YouTube URL
 	if strings.HasPrefix(currentPath, "http") {
-		artImg = youtubedl.GetYtDLThumbnail(currentPath)
+		thumbnail, err := youtubedl.GetYtDLThumbnail(currentPath)
+		if err != nil {
+			log.Printf("Error getting thumbnail for %s: %v", currentPath, err)
+			// Continue without thumbnail
+		} else {
+			artImg = thumbnail
+		}
 	} else {
 		// For local files, use the existing cover art logic
 		artPath := messages.FindCoverArtPath(currentPath)

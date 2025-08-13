@@ -181,33 +181,45 @@ func (list *List) AddNext(arg string) (bool, error) {
 
 func getHumanAndPath(arg string) (human, path string, err error) {
 	path = helper.StripHTMLTags(arg)
-	if strings.HasPrefix(path, "http") && youtubedl.IsWhiteListedURL(path) == true {
-		human = youtubedl.GetYtDLTitle(path)
-		if human == "" {
-			human = path
+	if strings.HasPrefix(path, "http") && youtubedl.IsWhiteListedURL(path) {
+		// Handle YouTube URL case
+		title, titleErr := youtubedl.GetYtDLTitle(path)
+		if titleErr != nil {
+			log.Printf("Error getting title for %s: %v", path, titleErr)
+			human = path // Fallback to URL as title
+		} else {
+			human = title
 		}
-		return
+		return human, path, nil
 	} else if strings.HasPrefix(path, "http") {
-		return "", "", errors.New("URL Doesn't meet whitelist")
+		return "", "", errors.New("URL doesn't meet whitelist requirements")
 	}
 
 	// Try to parse as ID first
 	if id, parseErr := strconv.Atoi(path); parseErr == nil {
 		human, path = search.GetTrackById(id)
 		if path != "" {
-			return
+			return human, path, nil
 		}
 	}
 
 	// If not a valid ID, try YouTube search
-	searchURL := youtubedl.SearchYouTube(arg)
+	searchURL, searchErr := youtubedl.SearchYouTube(arg)
+	if searchErr != nil {
+		log.Printf("YouTube search failed for '%s': %v", arg, searchErr)
+		return "", "", errors.New("search failed")
+	}
+
 	if searchURL != "" {
-		human = youtubedl.GetYtDLTitle(searchURL)
-		if human == "" {
-			human = arg
+		title, titleErr := youtubedl.GetYtDLTitle(searchURL)
+		if titleErr != nil {
+			log.Printf("Error getting title for search result %s: %v", searchURL, titleErr)
+			human = arg // Fallback to search query as title
+		} else {
+			human = title
 		}
 		path = searchURL
-		return
+		return human, path, nil
 	}
 
 	return "", "", errors.New("id not found and search failed")
